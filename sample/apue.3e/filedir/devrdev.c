@@ -1,6 +1,8 @@
 #include "apue.h"
 #ifdef SOLARIS
 #include <sys/mkdev.h>
+#else
+#include <sys/sysmacros.h>
 #endif
 
 int

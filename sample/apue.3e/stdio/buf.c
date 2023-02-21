@@ -44,6 +44,11 @@ pr_stdio(const char *name, FILE *fp)
  * The following is nonportable.
  */
 
+#ifdef __GLIBC__
+#define _IO_UNBUFFERED        0x0002
+#define _IO_LINE_BUF          0x0200
+#endif
+
 #if defined(_IO_UNBUFFERED)
 
 int
