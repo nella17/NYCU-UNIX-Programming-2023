@@ -1,3 +1,4 @@
 *.tar.gz
 *.o
 *.exe
+__pycache__
