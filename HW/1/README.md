@@ -177,12 +177,9 @@ cat: /etc/ssl/certs/Amazon_Root_CA_1.pem: Input/output error
 cat: /etc/ssl/certs/Amazon_Root_CA_1.pem: Bad file descriptor
 ```
 ### Example4
-* command: `./launcher ./sandbox.so config.txt cat /etc/passwd`
-* output:
-```
-[logger] open("/etc/passwd", 0, 0) = -1
-cat: /etc/passwd: Invalid argument
-```
+
+> Deleted because duplicated to Example1.
+
 ### Example5
 * command: `./launcher ./sandbox.so config.txt wget http://google.com -t 1`
 * output:
