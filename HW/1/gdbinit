@@ -1,0 +1,6 @@
+set env LD_PRELOAD ./sandbox.so
+set env SANDBOX_CONFIG config.txt
+set env LOGGER_FD 2
+pwndbg
+# set context-sections ''
+r /etc/hosts
