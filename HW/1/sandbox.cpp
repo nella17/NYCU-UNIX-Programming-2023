@@ -33,7 +33,7 @@
 
 static std::unordered_map<std::string, std::vector<std::string>> configs;
 static FILE* logger;
-#define log(...) fprintf(logger, __VA_ARGS__);
+#define log(format, ...) fprintf(logger, "[logger] " format, __VA_ARGS__);
 
 static std::unordered_map<std::string, void*> hook_funcs;
 
@@ -83,21 +83,50 @@ static void load_config(const char* config) {
     }
 }
 
-static int hook_open(const char* path, int oflag, mode_t mode) {
+static int hook_open(const char* file, int oflag, mode_t mode) {
+    log("open(%s, %d, %d)\n", file, oflag, mode);
     for (auto black: configs["open"])
-        if (path == black) {
+        if (file == black) {
             errno = EACCES;
             return -1;
         }
-    return open(path, oflag, mode);
+    return open(file, oflag, mode);
 }
 
-static int hook_close(...) { return -1; }
-static int hook_read(...) { return -1; }
-static int hook_write(...) { return -1; }
-static int hook_connect(...) { return -1; }
-static int hook_getaddrinfo(...) { return -1; }
-static int hook_system(...) { return -1; }
+static int hook_close(int fd) {
+    log("close(%d)\n", fd);
+    return close(fd);
+}
+
+static ssize_t hook_read(int fd, void* buf, size_t nbytes) {
+    log("read(%d, %p, %lu)\n", fd, buf, nbytes);
+    return read(fd, buf, nbytes);
+}
+
+static ssize_t hook_write(int fd, void* buf, size_t nbytes) {
+    log("write(%d, %p, %lu)\n", fd, buf, nbytes);
+    return write(fd, buf, nbytes);
+}
+
+static int hook_connect(int fd, const struct sockaddr *addr, socklen_t len) {
+    log("connect(%d, %p, %d)\n", fd, addr, len);
+    return connect(fd, addr, len);
+}
+
+static int hook_getaddrinfo(
+        const char *__restrict name,
+        const char *__restrict service,
+        const struct addrinfo *__restrict req,
+        struct addrinfo **__restrict pai
+    ) {
+    log("getaddrinfo(%s, %s, %p, %p)\n", name, service, req, pai);
+    return getaddrinfo(name, service, req, pai);
+}
+
+static int hook_system(const char *command) {
+    log("system(%s)\n", command);
+    return system(command);
+}
 
 static void patch_got() {
     void* main_handle = dlopen(NULL, RTLD_LAZY);
