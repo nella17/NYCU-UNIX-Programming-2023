@@ -147,13 +147,12 @@ END getaddrinfo-blacklist
 * output:
 ```
 [logger] open("/etc/passwd", 0, 0) = -1
-cat: /etc/passwd: Invalid argument
+cat: /etc/passwd: Permission denied
 ```
 ### Example2
 * command: `./launcher ./sandbox.so config.txt cat /etc/hosts`
 * output:
 ```
-[logger] open("/etc/hosts", 0, 0) = 5
 [logger] open("/etc/hosts", 0, 0) = 5
 [logger] read(5, 0x7fb7b2db2000, 131072) = 177
 127.0.0.1       localhost
@@ -170,7 +169,6 @@ ff02::2 ip6-allrouters
 * command: `./launcher ./sandbox.so config.txt cat /etc/ssl/certs/Amazon_Root_CA_1.pem`
 * output:
 ```
-[logger] open("/usr/share/ca-certificates/mozilla/Amazon_Root_CA_1.crt", 0, 0) = 5
 [logger] open("/usr/share/ca-certificates/mozilla/Amazon_Root_CA_1.crt", 0, 0) = 5
 [logger] read(5, 0x7f6a9c486000, 131072) = -1
 cat: /etc/ssl/certs/Amazon_Root_CA_1.pem: Input/output error
@@ -295,4 +293,8 @@ Please pack your files into a single `tar.gz` archive and submit your homework v
 
 1. [60%] We use `N` additional test cases to evaluate your implementation. You get $\frac{60}{N}$ points for each correct test case.
 
-1. [10%] If you can perform GOT hijacking without an external program, you get 10% * {ratio of the score you got from the above 2 items}.
+1. [10%] If you can perform GOT hijacking without an external program, you get 10% * {ratio of the score you got from the above two items}.
+
+   :::info
+   You may leverage external libraries that can be installed from the official Ubuntu package repository using the `apt` command. In this case, please list your library dependencies as comments in the `Makefile` and ensure you use the correct parameters to link against the required libraries.
+   :::
