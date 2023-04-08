@@ -1,15 +1,25 @@
-CXX		= g++
-CXXFLAGS= -Wall -g -D_GNU_SOURCE -fPIC
-LDFLAGS = 
-PROGS	= sandbox.so
+CXX		?= g++
+CXXFLAGS:= -Wall -g -D_GNU_SOURCE -fPIC
+LDFLAGS := 
+PROGS	:= sandbox.so
+OBJDIR 	:= ./obj
+SRCDIR 	:= ./
 
 .PHONY: all
 all: $(PROGS)
 
-%.o: %.cpp
-	$(CXX) -c $< $(CXXFLAGS)
+SRCS := $(notdir $(wildcard ${SRCDIR}/*.cpp))
+OBJS := $(addprefix $(OBJDIR)/, $(patsubst %.cpp, %.o, $(SRCS)))
+DEPS := $(addprefix $(OBJDIR)/, $(patsubst %.cpp, %.d, $(SRCS)))
 
-sandbox.so: sandbox.o
+$(shell [ -d $(OBJDIR) ] || mkdir -p $(OBJDIR))
+
+-include $(DEPS)
+
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp
+	$(CXX) -MP -MMD -c $< -o $@ $(CXXFLAGS)
+
+$(PROGS): $(OBJS)
 	$(CXX) -o $@ -shared $^ $(LDFLAGS)
 
 .PHONY: test
@@ -18,4 +28,4 @@ test: $(PROGS)
 
 .PHONY: clean
 clean:
-	rm -f *.o *.so
+	rm -rf $(OBJDIR) $(PROGS)
