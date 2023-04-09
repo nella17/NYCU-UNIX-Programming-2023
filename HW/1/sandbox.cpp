@@ -14,7 +14,10 @@
 #include <unistd.h>
 
 // #define DEBUG
-#ifdef DEBUG
+// #define DEBUG_SHOW
+// #define DEBUG_STOP
+
+#ifdef DEBUG_SHOW
 #define DEBUG_PRINT(...) fprintf(stderr, __VA_ARGS__);
 #else
 #define DEBUG_PRINT(...)
@@ -186,7 +189,9 @@ static void patch_got() {
         }
     }
 
-    DEBUG_PRINT("strtab = %p\nplt_rela = %p\nplt_relsz = 0x%lx\ndynsym = %p\n", strtab, plt_rela, plt_relsz, dynsym);
+#ifdef DEBUG
+    fprintf(stderr, "strtab = %p\nplt_rela = %p\nplt_relsz = 0x%lx\ndynsym = %p\n", strtab, plt_rela, plt_relsz, dynsym);
+#endif
 
 #define FOR_EACH_RELA(THINGS) \
     for (size_t i = 0; i < plt_relsz; i++) { \
@@ -238,7 +243,7 @@ int __libc_start_main (
 
     patch_got();
 
-#ifdef DEBUG
+#ifdef DEBUG_STOP
     asm("int3");
 #endif
 
