@@ -30,7 +30,7 @@
 #include <string>
 #include <fstream>
 #include <iostream>
-#include <unordered_map>
+#include <map>
 #include <vector>
 
 #define DO_HOOKS(MACRO) \
@@ -42,11 +42,11 @@
     MACRO(getaddrinfo) \
     MACRO(system) \
 
-static std::unordered_map<std::string, std::vector<std::string>> configs;
+static std::map<std::string, std::vector<std::string>> configs;
 static FILE* logger;
 #define log(format, ...) fprintf(logger, "[logger] " format, __VA_ARGS__);
 
-static std::unordered_map<std::string, void*> hook_funcs;
+static std::map<std::string, void*> hook_funcs;
 
 enum TYPE {
     NONE,
