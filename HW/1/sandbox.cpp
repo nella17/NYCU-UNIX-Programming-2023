@@ -12,6 +12,13 @@
 #include <string.h>
 #include <unistd.h>
 
+// #define DEBUG
+#ifdef DEBUG
+#define DEBUG_PRINT(...) fprintf(stderr, __VA_ARGS__);
+#else
+#define DEBUG_PRINT(...)
+#endif
+
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -140,6 +147,8 @@ static void patch_got() {
     const char* strtab;
     const ElfW(Rela)* plt_rela;
     size_t plt_relsz = 0;
+    const ElfW(Rela)* rela;
+    size_t relasz = 0, relaent = sizeof(ElfW(Rela));
     const ElfW(Sym) * dynsym;
 
     for (const ElfW(Dyn) * dyn = dyn_start; dyn->d_tag != DT_NULL; ++dyn) {
@@ -153,30 +162,48 @@ static void patch_got() {
             case DT_PLTRELSZ:
                 plt_relsz = dyn->d_un.d_val / sizeof(ElfW(Rela));
                 break;
+            case DT_RELA:
+                rela = (ElfW(Rela)*)dyn->d_un.d_ptr;
+                break;
+            case DT_RELASZ:
+                relasz = dyn->d_un.d_val;
+                break;
+            case DT_RELAENT:
+                relaent = dyn->d_un.d_val;
+                break;
             case DT_SYMTAB:
                 dynsym = (ElfW(Sym)*)dyn->d_un.d_ptr;
                 break;
         }
     }
 
-#ifdef DEBUG
-    fprintf(stderr, "strtab = %p\nplt_rela = %p\nplt_relsz = 0x%lx\ndynsym = %p\n", strtab, plt_rela, plt_relsz, dynsym);
-#endif
+    DEBUG_PRINT("strtab = %p\nplt_rela = %p\nplt_relsz = 0x%lx\ndynsym = %p\n", strtab, plt_rela, plt_relsz, dynsym);
 
-    for (size_t i = 0; i < plt_relsz; i++) {
-        uint32_t idx = plt_rela[i].r_info >> 32;
-        void** addr = (void**)( (char*)load_addr + plt_rela[i].r_offset );
-        auto name = &strtab[dynsym[idx].st_name];
+#define FOR_EACH_RELA(THINGS) \
+    for (size_t i = 0; i < plt_relsz; i++) { \
+        uint32_t idx = ELF64_R_SYM(plt_rela[i].r_info); \
+        void** addr = (void**)( (char*)load_addr + plt_rela[i].r_offset ); \
+        auto name = &strtab[dynsym[idx].st_name]; \
+        DEBUG_PRINT("plt %ld: %s %p\n", i, name, addr); \
+        THINGS; \
+    } \
+    for (size_t i = 0; i < relasz / relaent; i++) { \
+        uint32_t idx = ELF64_R_SYM(rela[i].r_info); \
+        void** addr = (void**)( (char*)load_addr + rela[i].r_offset ); \
+        auto name = &strtab[dynsym[idx].st_name]; \
+        DEBUG_PRINT("rela %ld: %s %p\n", i, name, addr); \
+        THINGS; \
+    } \
+
+    FOR_EACH_RELA(
         if (hook_funcs.count(name)) {
             auto pagesize = (size_t)sysconf(_SC_PAGE_SIZE);
             auto base = (void*)((size_t)addr & (~(pagesize-1)));
             assert(mprotect(base, pagesize, PROT_READ | PROT_WRITE) == 0);
             *addr = hook_funcs[name];
-#ifdef DEBUG
-            fprintf(stderr, "%p %p %lx %x %s\n", addr, base, pagesize, idx, name);
-#endif
+            DEBUG_PRINT("%p %p %lx %x \"%s\"\n", addr, base, pagesize, idx, name);
         }
-    }
+    );
 
     return;
 }
