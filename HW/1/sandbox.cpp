@@ -169,7 +169,12 @@ static int hook_getaddrinfo(
         const struct addrinfo *__restrict req,
         struct addrinfo **__restrict pai
     ) {
-    int ret = getaddrinfo(name, service, req, pai);
+    int ret = EAI_NONAME;
+    for (auto black: configs["getaddrinfo"])
+        if (name == black)
+            goto end;
+    ret = getaddrinfo(name, service, req, pai);
+end:
     log("getaddrinfo(\"%s\", \"%s\", %p, %p) = %d\n", name, service, req, pai, ret);
     return ret;
 }
