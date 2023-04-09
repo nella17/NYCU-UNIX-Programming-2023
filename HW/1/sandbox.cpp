@@ -23,9 +23,10 @@
 #define DEBUG_PRINT(...)
 #endif
 
+#include <netdb.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
-#include <netdb.h>
+#include <arpa/inet.h>
 
 #include <string>
 #include <fstream>
@@ -158,7 +159,41 @@ static ssize_t hook_write(int fd, void* buf, size_t nbytes) {
 }
 
 static int hook_connect(int fd, const struct sockaddr *addr, socklen_t len) {
-    int ret = connect(fd, addr, len);
+    int ret = -1;
+
+    if (addr->sa_family != AF_INET) {
+        errno = EAFNOSUPPORT;
+        goto end;
+    }
+
+    for (auto black: configs["connect"]) {
+        auto pos = black.find(":");
+        auto host = black.substr(0, pos);
+        auto port = black.substr(pos + 1);
+        auto addrin = (sockaddr_in*)addr;
+again:
+        // fprintf(stderr, "gethostbyname2(%s) / %s\n", host.c_str(), port.c_str());
+        auto ent = gethostbyname2(host.c_str(), AF_INET);
+        if (ent) {
+            for (auto addrs = (in_addr_t**)ent->h_addr_list; *addrs; addrs++) {
+                // fprintf(stderr, "'%x'\n", **addrs);
+                if (addrin->sin_addr.s_addr == **addrs) {
+                    errno = ECONNREFUSED;
+                    goto end;
+                }
+            }
+        } else {
+            if (h_errno == TRY_AGAIN)
+                goto again;
+            auto adr = inet_addr(host.c_str());
+            if (addrin->sin_addr.s_addr == adr) {
+                errno = ECONNREFUSED;
+                goto end;
+            }
+        }
+    }
+    ret = connect(fd, addr, len);
+end:
     log("connect(%d, %p, %d) = %d\n", fd, addr, len, ret);
     return ret;
 }
