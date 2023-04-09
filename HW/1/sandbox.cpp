@@ -91,7 +91,7 @@ static void load_config(const char* config) {
 }
 
 static int hook_open(const char* file, int oflag, mode_t mode) {
-    log("open(%s, %d, %d)\n", file, oflag, mode);
+    log("open(\"%s\", %d, %d)\n", file, oflag, mode);
     for (auto black: configs["open"])
         if (file == black) {
             errno = EACCES;
@@ -126,12 +126,12 @@ static int hook_getaddrinfo(
         const struct addrinfo *__restrict req,
         struct addrinfo **__restrict pai
     ) {
-    log("getaddrinfo(%s, %s, %p, %p)\n", name, service, req, pai);
+    log("getaddrinfo(\"%s\", \"%s\", %p, %p)\n", name, service, req, pai);
     return getaddrinfo(name, service, req, pai);
 }
 
 static int hook_system(const char *command) {
-    log("system(%s)\n", command);
+    log("system(\"%s\")\n", command);
     return system(command);
 }
 
