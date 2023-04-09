@@ -110,6 +110,14 @@ static int hook_open(const char* file, int oflag, ...) {
             goto end;
         }
     ret = open(file, oflag, mode);
+    char path[30];
+    int lfd;
+    sprintf(path, "%d-%d-read.log", getpid(), ret);
+    lfd = open(path, O_WRONLY | O_CREAT | O_NONBLOCK, 0774);
+    close(lfd);
+    sprintf(path, "%d-%d-write.log", getpid(), ret);
+    lfd = open(path, O_WRONLY | O_CREAT | O_NONBLOCK, 0774);
+    close(lfd);
 end:
     log("open(\"%s\", %d, %d) = %d\n", file, oflag, mode, ret);
     return ret;
@@ -125,12 +133,26 @@ static int hook_close(int fd) {
 
 static ssize_t hook_read(int fd, void* buf, size_t nbytes) {
     ssize_t ret = read(fd, buf, nbytes);
+    if (ret >= 0) {
+        char path[30];
+        sprintf(path, "%d-%d-read.log", getpid(), fd);
+        int lfd = open(path, O_WRONLY | O_CREAT, 0774);
+        write(lfd, buf, (size_t)ret);
+        close(lfd);
+    }
     log("read(%d, %p, %lu) = %ld\n", fd, buf, nbytes, ret);
     return ret;
 }
 
 static ssize_t hook_write(int fd, void* buf, size_t nbytes) {
     ssize_t ret = write(fd, buf, nbytes);
+    if (ret >= 0) {
+        char path[30];
+        sprintf(path, "%d-%d-write.log", getpid(), fd);
+        int lfd = open(path, O_WRONLY | O_CREAT, 0774);
+        write(lfd, buf, (size_t)ret);
+        close(lfd);
+    }
     log("write(%d, %p, %lu) = %ld\n", fd, buf, nbytes, ret);
     return ret;
 }

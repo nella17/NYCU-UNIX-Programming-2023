@@ -28,4 +28,4 @@ test: $(PROGS)
 
 .PHONY: clean
 clean:
-	rm -rf $(OBJDIR) $(PROGS)
+	rm -rf $(OBJDIR) $(PROGS) ./*.log
