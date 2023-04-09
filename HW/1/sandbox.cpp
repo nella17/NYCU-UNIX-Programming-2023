@@ -93,6 +93,7 @@ static void load_config(const char* config) {
             }
         }
     }
+    assert(configs["read"].size() <= 1);
 }
 
 static int hook_open(const char* file, int oflag, ...) {
@@ -124,23 +125,69 @@ end:
     return ret;
 }
 
+void build_kmp(const auto& S, auto &F) {
+    size_t Ssz = S.size();
+    F.resize(Ssz+1);
+    F[0] = -1, F[1] = 0;
+    ssize_t j = 0;
+    for (size_t i = 1; i < Ssz; F[++i] = ++j) {
+        if (S[i] == S[j]) F[i] = F[j]; // optimize
+        while (j != -1 and S[i] != S[j]) j = F[j];
+    }
+}
+
+static std::map<int, ssize_t> read_filter_pos;
+static std::string read_filter;
+static std::vector<ssize_t> read_filter_f;
+
 static int hook_close(int fd) {
     int ret = close(fd);
 #ifdef DEBUG
     log("close(%d) = %d\n", fd, ret);
 #endif
+    read_filter_pos.erase(fd);
     return ret;
 }
 
 static ssize_t hook_read(int fd, void* buf, size_t nbytes) {
-    ssize_t ret = read(fd, buf, nbytes);
+    static bool first = true;
+    if (first) {
+        first = false;
+        auto& v = configs["read"];
+        if (v.empty()) {
+            read_filter.clear();
+        } else {
+            read_filter = v[0];
+            build_kmp(read_filter, read_filter_f);
+        }
+    }
+    char tmpbuf[nbytes];
+    ssize_t ret = read(fd, tmpbuf, nbytes);
+    if (ret < 0) goto end;
+    if (read_filter.size()) {
+        auto pos = read_filter_pos[fd];
+        for (size_t i = 0; i < (size_t)ret; ++i) {
+            while (pos != -1 and tmpbuf[i] != read_filter[(size_t)pos])
+                pos = read_filter_f[(size_t)pos];
+            if (++pos == (ssize_t)read_filter.size()) {
+                close(fd);
+                read_filter_pos.erase(fd);
+                errno = EIO;
+                ret = -1;
+                goto end;
+            }
+        }
+        read_filter_pos.insert_or_assign(fd, pos);
+    }
     if (ret >= 0) {
+        memcpy(buf, tmpbuf, (size_t)ret);
         char path[30];
         sprintf(path, "%d-%d-read.log", getpid(), fd);
         int lfd = open(path, O_WRONLY | O_CREAT, 0774);
         write(lfd, buf, (size_t)ret);
         close(lfd);
     }
+end:
     log("read(%d, %p, %lu) = %ld\n", fd, buf, nbytes, ret);
     return ret;
 }

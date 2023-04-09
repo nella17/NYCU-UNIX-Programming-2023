@@ -1,5 +1,5 @@
 CXX		?= g++
-CXXFLAGS:= -Wall -g -D_GNU_SOURCE -fPIC
+CXXFLAGS:= -std=c++17 -Wall -g -D_GNU_SOURCE -fPIC -fconcepts
 LDFLAGS := 
 PROGS	:= sandbox.so
 OBJDIR 	:= ./obj
