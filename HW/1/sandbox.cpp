@@ -103,33 +103,42 @@ static int hook_open(const char* file, int oflag, ...) {
         mode = va_arg (arg, mode_t);
         va_end(arg);
     }
-    log("open(\"%s\", %d, %d)\n", file, oflag, mode);
+    int ret = -1;
     for (auto black: configs["open"])
         if (file == black) {
             errno = EACCES;
-            return -1;
+            goto end;
         }
-    return open(file, oflag, mode);
+    ret = open(file, oflag, mode);
+end:
+    log("open(\"%s\", %d, %d) = %d\n", file, oflag, mode, ret);
+    return ret;
 }
 
 static int hook_close(int fd) {
-    log("close(%d)\n", fd);
-    return close(fd);
+    int ret = close(fd);
+#ifdef DEBUG
+    log("close(%d) = %d\n", fd, ret);
+#endif
+    return ret;
 }
 
 static ssize_t hook_read(int fd, void* buf, size_t nbytes) {
-    log("read(%d, %p, %lu)\n", fd, buf, nbytes);
-    return read(fd, buf, nbytes);
+    ssize_t ret = read(fd, buf, nbytes);
+    log("read(%d, %p, %lu) = %ld\n", fd, buf, nbytes, ret);
+    return ret;
 }
 
 static ssize_t hook_write(int fd, void* buf, size_t nbytes) {
-    log("write(%d, %p, %lu)\n", fd, buf, nbytes);
-    return write(fd, buf, nbytes);
+    ssize_t ret = write(fd, buf, nbytes);
+    log("write(%d, %p, %lu) = %ld\n", fd, buf, nbytes, ret);
+    return ret;
 }
 
 static int hook_connect(int fd, const struct sockaddr *addr, socklen_t len) {
-    log("connect(%d, %p, %d)\n", fd, addr, len);
-    return connect(fd, addr, len);
+    int ret = connect(fd, addr, len);
+    log("connect(%d, %p, %d) = %d\n", fd, addr, len, ret);
+    return ret;
 }
 
 static int hook_getaddrinfo(
@@ -138,8 +147,9 @@ static int hook_getaddrinfo(
         const struct addrinfo *__restrict req,
         struct addrinfo **__restrict pai
     ) {
-    log("getaddrinfo(\"%s\", \"%s\", %p, %p)\n", name, service, req, pai);
-    return getaddrinfo(name, service, req, pai);
+    int ret = getaddrinfo(name, service, req, pai);
+    log("getaddrinfo(\"%s\", \"%s\", %p, %p) = %d\n", name, service, req, pai, ret);
+    return ret;
 }
 
 static int hook_system(const char *command) {
