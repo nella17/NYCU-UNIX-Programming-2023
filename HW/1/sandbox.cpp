@@ -6,6 +6,7 @@
 #include <elf.h>
 #include <fcntl.h>
 #include <link.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -90,7 +91,15 @@ static void load_config(const char* config) {
     }
 }
 
-static int hook_open(const char* file, int oflag, mode_t mode) {
+static int hook_open(const char* file, int oflag, ...) {
+    // https://sourcegraph.com/github.com/bminor/glibc@glibc-2.35/-/blob/sysdeps/unix/sysv/linux/open64.c?L29-43
+    mode_t mode = 0;
+    if (__OPEN_NEEDS_MODE(oflag)) {
+        va_list arg;
+        va_start(arg, oflag);
+        mode = va_arg (arg, mode_t);
+        va_end(arg);
+    }
     log("open(\"%s\", %d, %d)\n", file, oflag, mode);
     for (auto black: configs["open"])
         if (file == black) {
