@@ -209,8 +209,12 @@ static int hook_connect(int fd, const struct sockaddr *addr, socklen_t len) {
     int ret = -1;
 
     if (addr->sa_family != AF_INET) {
-        errno = EAFNOSUPPORT;
-        goto end;
+        if (0) {
+            errno = EAFNOSUPPORT;
+            goto end;
+        } else {
+            goto connect;
+        }
     }
 
     for (auto black: configs["connect"]) {
@@ -239,6 +243,7 @@ again:
             }
         }
     }
+connect:
     ret = connect(fd, addr, len);
 end:
     log("connect(%d, %p, %d) = %d\n", fd, addr, len, ret);
