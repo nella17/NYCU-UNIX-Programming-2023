@@ -28,11 +28,15 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#include <string>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <set>
+#include <string>
 #include <vector>
+
+namespace fs = std::filesystem;
 
 #define DO_HOOKS(MACRO) \
     MACRO(open) \
@@ -96,6 +100,18 @@ static void load_config(const char* config) {
     assert(configs["read"].size() <= 1);
 }
 
+auto readlinks(std::string file) {
+    std::set<std::string> paths{};
+    fs::path path = file;
+    try {
+        path = fs::weakly_canonical(path.parent_path()) / path.filename();
+        while (paths.emplace(path).second and fs::is_symlink(path))
+            path = path.parent_path() / fs::read_symlink(path);
+    } catch (...) {
+    }
+    return paths;
+}
+
 static int hook_open(const char* file, int oflag, ...) {
     // https://sourcegraph.com/github.com/bminor/glibc@glibc-2.35/-/blob/sysdeps/unix/sysv/linux/open64.c?L29-43
     mode_t mode = 0;
@@ -106,19 +122,33 @@ static int hook_open(const char* file, int oflag, ...) {
         va_end(arg);
     }
     int ret = -1;
-    for (auto black: configs["open"])
-        if (file == black) {
-            errno = EACCES;
-            goto end;
-        }
+    std::error_code ec;
+    auto path = fs::canonical(file, ec);
+    if (!ec) {
+        for (auto black: configs["open"])
+            if (fs::canonical(black, ec) == path) {
+                errno = EACCES;
+                goto end;
+            }
+    } else {
+        // TODO
+        std::set<std::string> paths = readlinks(file);
+        for (auto black: configs["open"])
+            for (auto p: readlinks(black))
+                if (paths.count(p)) {
+                    // std::cerr << p << std::endl;
+                    errno = EACCES;
+                    goto end;
+                }
+    }
     ret = open(file, oflag, mode);
-    char path[30];
+    char lpath[30];
     int lfd;
-    sprintf(path, "%d-%d-read.log", getpid(), ret);
-    lfd = open(path, O_WRONLY | O_CREAT | O_NONBLOCK, 0774);
+    sprintf(lpath, "%d-%d-read.log", getpid(), ret);
+    lfd = open(lpath, O_WRONLY | O_CREAT | O_NONBLOCK, 0774);
     close(lfd);
-    sprintf(path, "%d-%d-write.log", getpid(), ret);
-    lfd = open(path, O_WRONLY | O_CREAT | O_NONBLOCK, 0774);
+    sprintf(lpath, "%d-%d-write.log", getpid(), ret);
+    lfd = open(lpath, O_WRONLY | O_CREAT | O_NONBLOCK, 0774);
     close(lfd);
 end:
     log("open(\"%s\", %d, %d) = %d\n", file, oflag, mode, ret);
