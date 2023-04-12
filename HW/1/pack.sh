@@ -1,2 +1,2 @@
 #!/bin/bash
-tar cvf "${ID:=pack}.tar.gz" Makefile sandbox.{c,h}pp
+tar czvf "${ID:=pack}.tar.gz" Makefile sandbox.{c,h}pp
