@@ -142,6 +142,7 @@ static int hook_open(const char* file, int oflag, ...) {
                 }
     }
     ret = open(file, oflag, mode);
+    if (ret < 0) goto end;
     char lpath[30];
     int lfd;
     sprintf(lpath, "%d-%d-read.log", getpid(), ret);
