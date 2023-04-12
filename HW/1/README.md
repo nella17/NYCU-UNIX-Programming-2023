@@ -45,7 +45,7 @@ All functions listed below should be logged to the file descriptor (fd) passed b
    Allow a user to set the file access blacklist so that files listed in the blacklist cannot be opened. If a file is in the blacklist, return -1 and set `errno` to EACCES. Note that for handling symbolic linked files, your implementation has to follow the links before performing the checks.
 
 2. `read`
-   Your implementation must log all content into a file. The log file should be named in the format `{pid}-{fd}-read.log` and be created after an fd is opened. (If an fd is used more than one time in a process, keep logging the content into the same log file.)
+   Your implementation must log all content into a file. The log file should be named in the format `{pid}-{fd}-read.log` and be created at `read` function on this fd be called first time. (If an fd is used more than one time in a process, keep logging the content into the same log file.)
    
    Furthermore, your implementation has to allow a user to filter the read content based on a keyword blacklist. The filter should be active for all read operations. If the filter detects a matched keyword in a read content, close the fd and return -1 with an `errno` setting to EIO. Do not log the content if it is filtered.
     
@@ -55,7 +55,7 @@ All functions listed below should be logged to the file descriptor (fd) passed b
    * Reading gets `abcd`, `S3C`, `R3T` (should be detected on read of the `R3T`)
 
 3. `write`
-    Your implementation must log all content into a file. The log file should be named in the format `{pid}-{fd}-write.log` and be created after an fd is opened. (If an fd is used more than one time in a process, keep logging the content into the same log file.)
+    Your implementation must log all content into a file. The log file should be named in the format `{pid}-{fd}-write.log` and be created at `write` function on this fd be called first time. (If an fd is used more than one time in a process, keep logging the content into the same log file.)
 
 4. `connect`
     Allow a user to block connection setup to specific IP addresses and PORT numbers. If the IP and PORT is blocked, return -1 and set `errno` to ECONNREFUSED.
@@ -229,6 +229,8 @@ failed: Connection refused.
 [logger] read(5, 0x56126a865840, 3) = 3
 [logger] read(5, 0x56126a865840, 2) = 2
 ```
+* Note:
+    * You should find an `index.html` that contains the HTML content. And you should also find the same content in the log file.
 
 ### Example8
 * command: `./launcher ./sandbox.so config.txt python3 -c 'import os;os.system("wget http://www.google.com -q -t 1")'`
@@ -298,3 +300,7 @@ Please pack your files into a single `tar.gz` archive and submit your homework v
    :::info
    You may leverage external libraries that can be installed from the official Ubuntu package repository using the `apt` command. In this case, please list your library dependencies as comments in the `Makefile` and ensure you use the correct parameters to link against the required libraries.
    :::
+
+## Hints
+* You don't need to consider the non-PIE binary. We will use PIE binary to test your program only.
+* You can use `readelf -r` to find the GOT offset of the binary.
