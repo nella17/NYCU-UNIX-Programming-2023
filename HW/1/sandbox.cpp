@@ -142,15 +142,6 @@ static int hook_open(const char* file, int oflag, ...) {
                 }
     }
     ret = open(file, oflag, mode);
-    if (ret < 0) goto end;
-    char lpath[30];
-    int lfd;
-    sprintf(lpath, "%d-%d-read.log", getpid(), ret);
-    lfd = open(lpath, O_WRONLY | O_CREAT | O_NONBLOCK, 0774);
-    close(lfd);
-    sprintf(lpath, "%d-%d-write.log", getpid(), ret);
-    lfd = open(lpath, O_WRONLY | O_CREAT | O_NONBLOCK, 0774);
-    close(lfd);
 end:
     log("open(\"%s\", %d, %d) = %d\n", file, oflag, mode, ret);
     return ret;
