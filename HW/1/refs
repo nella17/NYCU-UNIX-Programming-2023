@@ -1,0 +1,7 @@
+https://sourcegraph.com/github.com/bminor/glibc@glibc-2.35/-/blob/csu/libc-start.c?L233-241
+https://stackoverflow.com/questions/17620751/use-dlinfo-to-print-all-symbols-in-a-library
+https://ypl.coffee/dl-resolve/
+https://linux.die.net/man/5/elf
+https://linux.die.net/man/3/dl_iterate_phdr
+https://stackoverflow.com/questions/8875876/getting-the-elf-header-of-the-main-executable
+http://www.skyfree.org/linux/references/ELF_Format.pdf
