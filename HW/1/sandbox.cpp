@@ -49,7 +49,7 @@ namespace fs = std::filesystem;
 
 static std::map<std::string, std::vector<std::string>> configs;
 static FILE* logger;
-#define log(format, ...) fprintf(logger, "[logger] " format, __VA_ARGS__);
+#define log(format, ...) fprintf(logger, "[logger] " format, ##__VA_ARGS__);
 
 static std::map<std::string, void*> hook_funcs;
 
