@@ -69,7 +69,7 @@ static const struct proc_ops hellomod_proc_ops = {
 	.proc_release = single_release,
 };
 
-static char *hellomod_devnode(struct device *dev, umode_t *mode) {
+static char *hellomod_devnode(const struct device *dev, umode_t *mode) {
 	if(mode == NULL) return NULL;
 	*mode = 0666;
 	return NULL;

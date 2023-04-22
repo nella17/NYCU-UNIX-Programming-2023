@@ -2,9 +2,11 @@
 obj-m     += hellomod.o
 ccflags-y += -DEXPORT_SYMTAB
 
+KERNELDIR = ../dist/modulebuild
+
 all:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+	make -C $(KERNELDIR) M=$(PWD) modules
 
 clean:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+	make -C $(KERNELDIR) M=$(PWD) clean
 
