@@ -10,7 +10,7 @@ fi
 exec qemu-system-x86_64 \
   -smp 2 \
   -kernel ./dist/vmlinuz-* \
-  -initrd ./dist/rootfs.cpio.bz2 \
+  -initrd ./rootfs.cpio.bz2 \
   -append "$APPEND" \
   -serial stdio \
   -monitor none \

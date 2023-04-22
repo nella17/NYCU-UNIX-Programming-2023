@@ -1,1 +1,9 @@
+.*.cmd
+Module.symvers
+*.mod*
+*.ko
+modules.order
+
 dist
+rootfs
+*.bz2
