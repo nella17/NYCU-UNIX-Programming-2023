@@ -105,7 +105,7 @@ static int kshram_dev_mmap(struct file *fp, struct vm_area_struct *vma) {
     if (SHRAM_PTR[idx] == NULL || size > SHRAM_SIZE[idx])
         return -EINVAL;
 
-    page = virt_to_page(SHRAM_PTR[idx]);
+    page = virt_to_page(SHRAM_PTR[idx] + vma->vm_pgoff * PAGE_SIZE);
     pfn = page_to_pfn(page);
 
     if (remap_pfn_range(vma, vma->vm_start, pfn, size, vma->vm_page_prot))
