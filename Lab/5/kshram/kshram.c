@@ -62,20 +62,19 @@ void* kshram_alloc(long idx, long size) {
 }
 
 static int kshram_dev_open(struct inode *inode, struct file *fp) {
-    long idx = simple_strtol((const char*)fp->f_path.dentry->d_name.name + sizeof(DEVICE_NAME) - 1, NULL, 10);
-    fp->private_data = (void*)idx;
+    long idx = iminor(fp->f_inode);
     printk(KERN_INFO DEVICE_NAME ": device opened. idx=%ld.\n", idx);
     return 0;
 }
 
 static int kshram_dev_close(struct inode *inode, struct file *fp) {
-    long idx = (long)fp->private_data;
+    long idx = iminor(fp->f_inode);
     printk(KERN_INFO DEVICE_NAME ": device closed. idx=%ld.\n", idx);
     return 0;
 }
 
 static long kshram_dev_ioctl(struct file *fp, unsigned int cmd, unsigned long arg) {
-    long idx = (long)fp->private_data;
+    long idx = iminor(fp->f_inode);
 
     switch (cmd) {
         case KSHRAM_GETSLOTS:
@@ -97,7 +96,7 @@ static long kshram_dev_ioctl(struct file *fp, unsigned int cmd, unsigned long ar
 }
 
 static int kshram_dev_mmap(struct file *fp, struct vm_area_struct *vma) {
-    long idx = (long)fp->private_data;
+    long idx = iminor(fp->f_inode);
     unsigned long size = vma->vm_end - vma->vm_start;
     struct page* page;
     unsigned long pfn;
