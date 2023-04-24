@@ -50,11 +50,9 @@ void* kshram_alloc(long idx, long size) {
         printk(KERN_INFO DEVICE_NAME ": invalid slot index %ld.\n", idx);
         return NULL;
     }
-    if (SHRAM_PTR[idx] != NULL)
-        kshram_free(idx);
     size = (size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
     SHRAM_SIZE[idx] = size;
-    SHRAM_PTR[idx] = kmalloc(size, GFP_KERNEL);
+    SHRAM_PTR[idx] = kzalloc(size, GFP_KERNEL);
     for (int i = 0; i < size; i += PAGE_SIZE)
         SetPageReserved(virt_to_page((unsigned long)SHRAM_PTR[idx] + i));
     printk(KERN_INFO DEVICE_NAME ": allocated %ld bytes @ %p. idx=%ld.\n", size, SHRAM_PTR[idx], idx);
@@ -86,6 +84,7 @@ static long kshram_dev_ioctl(struct file *fp, unsigned int cmd, unsigned long ar
 
         case KSHRAM_SETSIZE:
             printk(KERN_INFO DEVICE_NAME ": SETSIZE. idx=%ld size=%ld.\n", idx, arg);
+            kshram_free(idx);
             kshram_alloc(idx, arg);
             return 0;
     }
