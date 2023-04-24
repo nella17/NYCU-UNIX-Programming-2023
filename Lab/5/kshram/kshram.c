@@ -158,10 +158,10 @@ static int kshram_init(void)
         dev_t devnum = MKDEV(MAJOR(dev), i);
         if(device_create(clazz, NULL, devnum, NULL, DEVICE_NAME "%d", i) == NULL)
             goto release_class;
-        cdev_init(&c_dev, &kshram_dev_fops);
-        if(cdev_add(&c_dev, devnum, SLOTS) == -1)
-            goto release_device;
     }
+    cdev_init(&c_dev, &kshram_dev_fops);
+    if(cdev_add(&c_dev, dev, SLOTS) == -1)
+        goto release_device;
     // create proc
     proc_create(DEVICE_NAME, 0, NULL, &kshram_proc_ops);
     //
