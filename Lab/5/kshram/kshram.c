@@ -21,48 +21,48 @@ static struct cdev c_dev;
 static struct class *clazz;
 
 static const struct file_operations kshram_dev_fops = {
-	.owner = THIS_MODULE,
+    .owner = THIS_MODULE,
 };
 
 static char *kshram_devnode(const struct device *dev, umode_t *mode) {
-	if(mode == NULL) return NULL;
-	*mode = 0666;
-	return NULL;
+    if(mode == NULL) return NULL;
+    *mode = 0666;
+    return NULL;
 }
 
 static int kshram_init(void)
 {
-	// create char dev
-	if(alloc_chrdev_region(&devnum, 0, 1, "updev") < 0)
-		return -1;
-	if((clazz = class_create(THIS_MODULE, "upclass")) == NULL)
-		goto release_region;
-	clazz->devnode = kshram_devnode;
-	if(device_create(clazz, NULL, devnum, NULL, "kshram0") == NULL)
-		goto release_class;
-	cdev_init(&c_dev, &kshram_dev_fops);
-	if(cdev_add(&c_dev, devnum, 1) == -1)
-		goto release_device;
+    // create char dev
+    if(alloc_chrdev_region(&devnum, 0, 1, "updev") < 0)
+        return -1;
+    if((clazz = class_create(THIS_MODULE, "upclass")) == NULL)
+        goto release_region;
+    clazz->devnode = kshram_devnode;
+    if(device_create(clazz, NULL, devnum, NULL, "kshram0") == NULL)
+        goto release_class;
+    cdev_init(&c_dev, &kshram_dev_fops);
+    if(cdev_add(&c_dev, devnum, 1) == -1)
+        goto release_device;
 
-	//
+    //
     printk(KERN_INFO "kshram: initialized.\n");
-	return 0;    // Non-zero return means that the module couldn't be loaded.
+    return 0;    // Non-zero return means that the module couldn't be loaded.
 
 release_device:
-	device_destroy(clazz, devnum);
+    device_destroy(clazz, devnum);
 release_class:
-	class_destroy(clazz);
+    class_destroy(clazz);
 release_region:
-	unregister_chrdev_region(devnum, 1);
-	return -1;
+    unregister_chrdev_region(devnum, 1);
+    return -1;
 }
 
 static void kshram_exit(void)
 {
-	cdev_del(&c_dev);
-	device_destroy(clazz, devnum);
-	class_destroy(clazz);
-	unregister_chrdev_region(devnum, 1);
+    cdev_del(&c_dev);
+    device_destroy(clazz, devnum);
+    class_destroy(clazz);
+    unregister_chrdev_region(devnum, 1);
 
     printk(KERN_INFO "kshram: cleaned up.\n");
 }
