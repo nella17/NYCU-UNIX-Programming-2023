@@ -23,9 +23,9 @@ MODULE_DESCRIPTION(DEVICE_NAME);
 MODULE_AUTHOR("nella17");
 MODULE_LICENSE("GPL");
 
-static dev_t devnum[SLOTS];
-static struct cdev c_dev[SLOTS];
-static struct class *clazz[SLOTS];
+static dev_t dev;
+static struct class *clazz;
+static struct cdev c_dev;
 
 long SHRAM_SIZE[SLOTS] = {};
 void* SHRAM_PTR[SLOTS] = {};
@@ -149,38 +149,37 @@ static char *kshram_devnode(const struct device *dev, umode_t *mode) {
 
 static int kshram_init(void)
 {
-    char devname[32];
     int i;
     // create char dev
+    if(alloc_chrdev_region(&dev, 0, SLOTS, "updev") < 0)
+        return -1;
+    if((clazz = class_create(THIS_MODULE, DEVICE_NAME)) == NULL)
+        goto release_region;
+    clazz->devnode = kshram_devnode;
     for (i = 0; i < SLOTS; i++) {
-        if(alloc_chrdev_region(&devnum[i], 0, 1, "updev") < 0)
-            return -1;
-        sprintf(devname, DEVICE_NAME "%d", i);
-        if((clazz[i] = class_create(THIS_MODULE, devname)) == NULL)
-            goto release_region;
-        clazz[i]->devnode = kshram_devnode;
-        if(device_create(clazz[i], NULL, devnum[i], NULL,  devname) == NULL)
+        dev_t devnum = MKDEV(MAJOR(dev), i);
+        if(device_create(clazz, NULL, devnum, NULL, DEVICE_NAME "%d", i) == NULL)
             goto release_class;
-        cdev_init(&c_dev[i], &kshram_dev_fops);
-        if(cdev_add(&c_dev[i], devnum[i], 1) == -1)
+        cdev_init(&c_dev, &kshram_dev_fops);
+        if(cdev_add(&c_dev, devnum, SLOTS) == -1)
             goto release_device;
-        kshram_alloc(i, DEFAULT_SIZE);
     }
     // create proc
     proc_create(DEVICE_NAME, 0, NULL, &kshram_proc_ops);
     //
+    for (int i = 0; i < SLOTS; i++)
+        kshram_alloc(i, DEFAULT_SIZE);
     printk(KERN_INFO DEVICE_NAME ": initialized.\n");
     return 0;    // Non-zero return means that the module couldn't be loaded.
 
 release_device:
-    for (int j = 0; j < i; j++)
-        device_destroy(clazz[j], devnum[j]);
+    cdev_del(&c_dev);
 release_class:
     for (int j = 0; j < i; j++)
-        class_destroy(clazz[j]);
+        device_destroy(clazz, MKDEV(MAJOR(dev), j));
+    class_destroy(clazz);
 release_region:
-    for (int j = 0; j < i; j++)
-        unregister_chrdev_region(devnum[j], 1);
+    unregister_chrdev_region(dev, SLOTS);
     return -1;
 }
 
@@ -188,13 +187,16 @@ static void kshram_exit(void)
 {
     remove_proc_entry(DEVICE_NAME, NULL);
 
-    for (int i = 0; i < SLOTS; i++) {
+    for (int i = 0; i < SLOTS; i++)
         kshram_free(i);
-        cdev_del(&c_dev[i]);
-        device_destroy(clazz[i], devnum[i]);
-        class_destroy(clazz[i]);
-        unregister_chrdev_region(devnum[i], 1);
+
+    cdev_del(&c_dev);
+    for (int i = 0; i < SLOTS; i++) {
+        dev_t devnum = MKDEV(MAJOR(dev), i);
+        device_destroy(clazz, devnum);
     }
+    class_destroy(clazz);
+    unregister_chrdev_region(dev, SLOTS);
 
     printk(KERN_INFO DEVICE_NAME ": cleaned up.\n");
 }
