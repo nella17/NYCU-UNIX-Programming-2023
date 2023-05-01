@@ -1,102 +1,117 @@
 sort:
-    movsxd rsi,esi
-    lea    rsi,[rdi+rsi*8]
-    jmp merge
-merge:
-    endbr64
 	push   rbp
 	mov    rbp,rsp
-	push   r15
-	push   r14
-	push   r13
-	push   r12
-	push   rbx
-	mov    rbx,rsi
-	sub    rbx,rdi
-	push   rax
-	sar    rbx,0x3
-	cmp    ebx,0x1
-	je     merge+0x121
-	mov    eax,ebx
-	mov    ecx,0x2
-	mov    r13,rsi
-	mov    r12,rdi
-	cdq
-	mov    r14,rsp
-	idiv   ecx
-	cdqe
-	lea    r15,[rdi+rax*8]
-	mov    rsi,r15
-	call   merge
-	mov    rsi,r13
-	mov    rdi,r15
-	call   merge
-	movsxd rax,ebx
-	mov    rcx,rsp
-	lea    rdx,[rax*8+0xf]
-	mov    rax,rdx
-	and    rdx,0xfffffffffffff000
-	and    rax,0xfffffffffffffff0
-	sub    rcx,rdx
-	cmp    rsp,rcx
-	je     merge+0x87
+	movsxd rsi,esi
+	shl    rsi,0x3
+	lea    rax,[rsi+0xf]
+	mov    rcx,rax
+	and    rcx,0xfffffffffffffff0
+	and    rax,0xfffffffffffff000
+	mov    rdx,rsp
+	sub    rdx,rax
+	cmp    rsp,rdx
+	je     sort+0x39
 	sub    rsp,0x1000
 	or     QWORD PTR [rsp+0xff8],0x0
-	jmp    merge+0x70
+	jmp    sort+0x22
+	mov    rax,rcx
 	and    eax,0xfff
 	sub    rsp,rax
 	test   rax,rax
-	je     merge+0x9a
+	je     sort+0x4f
 	or     QWORD PTR [rsp+rax*1-0x8],0x0
-	mov    r8,rsp
-	mov    r9,r15
-	mov    rsi,r12
-	mov    r10,r8
-	cmp    rsi,r15
-	jae    merge+0xd2
-	cmp    r9,r13
-	jae    merge+0xd2
-	mov    rdx,QWORD PTR [rsi]
-	mov    rax,QWORD PTR [r9]
-	add    r10,0x8
-	cmp    rdx,rax
-	jge    merge+0xc8
-	add    rsi,0x8
-	mov    rax,rdx
-	jmp    merge+0xcc
-	add    r9,0x8
-	mov    QWORD PTR [r10-0x8],rax
-	jmp    merge+0xa6
-	lea    rcx,[r15+0x7]
-	lea    rdx,[rsi-0x7]
-	xor    eax,eax
-	mov    rdi,r10
-	sub    rcx,rsi
-	and    rcx,0xfffffffffffffff8
-	cmp    rdx,r15
-	cmova  rcx,rax
-	rep movs BYTE PTR es:[rdi],BYTE PTR ds:[rsi]
-	lea    rcx,[r13+0x7]
-	lea    rsi,[r9-0x7]
-	sub    rcx,r9
-	and    rcx,0xfffffffffffffff8
-	cmp    rsi,r13
-	mov    rsi,r9
-	cmova  rcx,rax
-	rep movs BYTE PTR es:[rdi],BYTE PTR ds:[rsi]
-	mov    ecx,ebx
+	mov    rdx,rsp
+	add    rsi,rdi
+	call   merge
+	leave  
+	ret    
+
+merge:
+	push   r14
+	push   r13
+	push   r12
+	push   rbp
+	push   rbx
+	mov    r14,rsi
+	sub    r14,rdi
+	sar    r14,0x3
+	cmp    r14d,0x1
+	jle    merge+0x103
+	mov    r12,rdi
+	mov    rbp,rsi
+	mov    r13,rdx
+	mov    eax,r14d
+	shr    eax,0x1f
+	add    eax,r14d
+	sar    eax,1
+	cdqe   
+	lea    rbx,[rdi+rax*8]
+	mov    rsi,rbx
+	call   merge
+	mov    rdx,r13
+	mov    rsi,rbp
+	mov    rdi,rbx
+	call   merge
+	cmp    r12,rbx
+	jae    merge+0x92
+	cmp    rbp,rbx
+	jbe    merge+0x92
+	lea    rcx,[r13+0x8]
+	mov    rax,rbx
 	mov    rdi,r12
+	jmp    merge+0x7e
+	mov    rdx,rcx
+	add    rax,0x8
 	mov    rsi,r8
-	shl    rcx,0x3
-	test   ebx,ebx
-	cmovs  rcx,rax
-	rep movs BYTE PTR es:[rdi],BYTE PTR ds:[rsi]
-	mov    rsp,r14
-	lea    rsp,[rbp-0x28]
+	mov    QWORD PTR [rcx-0x8],rsi
+	add    rcx,0x8
+	cmp    rdi,rbx
+	jae    merge+0x9b
+	cmp    rax,rbp
+	jae    merge+0x9b
+	mov    rsi,QWORD PTR [rdi]
+	mov    r8,QWORD PTR [rax]
+	cmp    rsi,r8
+	jge    merge+0x62
+	mov    rdx,rcx
+	add    rdi,0x8
+	jmp    merge+0x6c
+	mov    rdx,r13
+	mov    rax,rbx
+	mov    rdi,r12
+	cmp    rbx,rdi
+	jbe    merge+0xcb
+	mov    rsi,rdx
+	mov    rcx,rdi
+	add    rcx,0x8
+	mov    r8,QWORD PTR [rcx-0x8]
+	add    rsi,0x8
+	mov    QWORD PTR [rsi-0x8],r8
+	cmp    rbx,rcx
+	ja     merge+0xa6
+	sub    rbx,0x1
+	sub    rbx,rdi
+	shr    rbx,0x3
+	lea    rdx,[rdx+rbx*8+0x8]
+	cmp    rbp,rax
+	jbe    merge+0xe5
+	add    rax,0x8
+	mov    rcx,QWORD PTR [rax-0x8]
+	add    rdx,0x8
+	mov    QWORD PTR [rdx-0x8],rcx
+	cmp    rbp,rax
+	ja     merge+0xd0
+	lea    ecx,[r14-0x1]
+	mov    eax,0x0
+	mov    rdx,QWORD PTR [r13+rax*8+0x0]
+	mov    QWORD PTR [r12+rax*8],rdx
+	mov    rdx,rax
+	add    rax,0x1
+	cmp    rcx,rdx
+	jne    merge+0xee
 	pop    rbx
+	pop    rbp
 	pop    r12
 	pop    r13
 	pop    r14
-	pop    r15
-	pop    rbp
-	ret
+	ret    

@@ -6,6 +6,7 @@ import sys
 
 teamtoken = None if len(sys.argv) < 3 else sys.argv[2]
 
+sys.path.insert(0, os.path.normpath(os.path.join(__file__, '../../../pow')))
 import pow as pw
 from pwn import *
 
