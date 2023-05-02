@@ -19,10 +19,11 @@ void impl(long* begin, long* end) {
     // printf("%ld %ld %ld\n", end - begin, begin - gn, end - gn);
 #endif
 
-    if (begin >= end) return;
+    long* mid = begin + (end - begin);
+	long pivot = *mid;
+    *mid = *begin;
 
-	long pivot = *begin;
-	long* i = begin + 1;
+	long* i = begin+1;
 	long* j = end;
 	while (i <= j) {
 		while (i <= j && *i <= pivot)
@@ -37,7 +38,9 @@ void impl(long* begin, long* end) {
 
     *begin = *j;
     *j = pivot;
-    impl(begin, j-1);
-    impl(j+1, end);
+    if (begin < j-1)
+        impl(begin, j-1);
+    if (j+1 < end)
+        impl(j+1, end);
 }
 

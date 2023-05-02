@@ -7,40 +7,43 @@ impl:
 	mov    rbp,rsi
 	push   rbx
 	push   rdx
-	cmp    rdi,rbp
-	jae    impl+0x69
-	mov    rdx,QWORD PTR [rdi]
-	lea    rax,[rdi+0x8]
+	mov    rax,QWORD PTR [rdi]
+	mov    rdx,QWORD PTR [rbp+0x0]
 	mov    rbx,rbp
+	mov    QWORD PTR [rbp+0x0],rax
+	lea    rax,[rdi+0x8]
 	cmp    rax,rbx
-	ja     impl+0x51
+	ja     impl+0x54
 	cmp    QWORD PTR [rax],rdx
-	jg     impl+0x2a
+	jg     impl+0x2d
 	add    rax,0x8
 	cmp    rbx,rax
-	jae    impl+0x1a
-	jmp    impl+0x15
+	jae    impl+0x1d
+	jmp    impl+0x18
 	mov    rsi,rbx
 	mov    rcx,QWORD PTR [rsi]
 	mov    rbx,rsi
 	cmp    rsi,rax
-	jb     impl+0x15
+	jb     impl+0x18
 	lea    rsi,[rsi-0x8]
 	cmp    rdx,rcx
-	jl     impl+0x2d
+	jl     impl+0x30
 	cmp    rbx,rax
-	jbe    impl+0x15
+	jbe    impl+0x18
 	mov    rsi,QWORD PTR [rax]
 	mov    QWORD PTR [rax],rcx
 	mov    QWORD PTR [rbx],rsi
-	jmp    impl+0x15
+	jmp    impl+0x18
 	mov    rax,QWORD PTR [rbx]
 	lea    rsi,[rbx-0x8]
 	mov    QWORD PTR [rdi],rax
 	mov    QWORD PTR [rbx],rdx
+	cmp    rsi,rdi
+	jbe    impl+0x6b
 	call   impl
 	lea    rdi,[rbx+0x8]
-	jmp    impl+0x6
+	cmp    rdi,rbp
+	jb     impl+0x6
 	pop    rax
 	pop    rbx
 	pop    rbp
