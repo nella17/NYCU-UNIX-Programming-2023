@@ -1,5 +1,5 @@
 void __attribute__ ((noinline)) sort(long *numbers, int n);
-void merge(long* begin, long* end, long* ary);
+void impl(long* begin, long* end, long* ary);
 
 typedef void (*fp)(long*, long*);
 
@@ -20,13 +20,13 @@ void sort(long *numbers, int n) {
     );
 }
 
-void merge(long* begin, long* end, long* ary) {
+void impl(long* begin, long* end, long* ary) {
     int n = end - begin;
     if (n <= 1) return;
 
     long* mid = begin + n / 2;
-    merge(begin, mid, ary);
-    merge(mid, end, ary);
+    impl(begin, mid, ary);
+    impl(mid, end, ary);
 
     // inplace_merge(begin, mid, end);
     long *l = begin, *r = mid, *a = ary;

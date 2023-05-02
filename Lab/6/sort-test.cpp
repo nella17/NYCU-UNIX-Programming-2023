@@ -1,6 +1,7 @@
 #include <bits/stdc++.h>
 extern "C" {
-#include "sort.c"
+// #include "sort-merge.c"
+#include "sort-quick.c"
 }
 
 std::mt19937 rng((int)std::chrono::steady_clock::now().time_since_epoch().count());
