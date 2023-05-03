@@ -20,8 +20,13 @@ void impl(long* begin, long* end) {
 #endif
 
     long* mid = begin + (end - begin);
-	long pivot = *mid;
-    *mid = *begin;
+    int a = *begin < *mid, b = *mid < *end, c = *begin < *end;
+    long* ppv =
+        (a ^ b) ? mid :
+        (a ^ !c) ? begin :
+                    end;
+	long pivot = *ppv;
+    *ppv = *begin;
 
 	long* i = begin+1;
 	long* j = end;
