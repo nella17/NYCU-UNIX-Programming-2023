@@ -7,43 +7,62 @@ impl:
 	mov    rbp,rsi
 	push   rbx
 	push   rdx
-	mov    rdx,QWORD PTR [rdi]
+	mov    rax,rbp
+	sub    rax,rdi
+	cmp    rax,0x48
+	jg     impl+0x47
+	cmp    rdi,rbp
+	ja     impl+0xc2
+	lea    rdx,[rdi+0x8]
+	mov    rax,rdx
+	mov    rcx,QWORD PTR [rdi]
+	cmp    rax,rbp
+	ja     impl+0x37
+	cmp    QWORD PTR [rax],rcx
+	cmovl  rdi,rax
+	add    rax,0x8
+	jmp    impl+0x22
+	mov    rax,QWORD PTR [rdx-0x8]
+	mov    QWORD PTR [rdx-0x8],rcx
+	mov    QWORD PTR [rdi],rax
+	mov    rdi,rdx
+	jmp    impl+0x12
+	mov    rcx,QWORD PTR [rdi]
 	mov    rax,rdi
-	cmp    rdx,QWORD PTR [rbp+0x0]
+	cmp    rcx,QWORD PTR [rbp+0x0]
 	mov    rbx,rbp
 	cmovl  rax,rbp
-	mov    rcx,QWORD PTR [rax]
-	mov    QWORD PTR [rax],rdx
+	mov    rdx,QWORD PTR [rax]
+	mov    QWORD PTR [rax],rcx
 	lea    rax,[rdi+0x8]
 	cmp    rax,rbx
-	ja     impl+0x60
-	cmp    QWORD PTR [rax],rcx
-	jg     impl+0x36
+	ja     impl+0x9e
+	cmp    QWORD PTR [rax],rdx
+	jg     impl+0x77
 	add    rax,0x8
 	cmp    rbx,rax
-	jae    impl+0x26
-	jmp    impl+0x4d
-	mov    rdx,rbx
-	mov    rsi,QWORD PTR [rdx]
-	mov    rbx,rdx
-	cmp    rdx,rax
-	jb     impl+0x4d
-	sub    rdx,0x8
-	cmp    rcx,rsi
-	jl     impl+0x39
-	cmp    rax,rbx
-	jae    impl+0x21
-	mov    rsi,QWORD PTR [rbx]
-	mov    rdx,QWORD PTR [rax]
-	mov    QWORD PTR [rax],rsi
-	mov    QWORD PTR [rbx],rdx
-	jmp    impl+0x21
+	jae    impl+0x67
+	jmp    impl+0x62
+	mov    rsi,rbx
+	mov    rcx,QWORD PTR [rsi]
+	mov    rbx,rsi
+	cmp    rsi,rax
+	jb     impl+0x62
+	lea    rsi,[rsi-0x8]
+	cmp    rcx,rdx
+	jg     impl+0x7a
+	cmp    rbx,rax
+	jbe    impl+0x62
+	mov    rsi,QWORD PTR [rax]
+	mov    QWORD PTR [rax],rcx
+	mov    QWORD PTR [rbx],rsi
+	jmp    impl+0x62
 	mov    rax,QWORD PTR [rbx]
 	lea    rsi,[rbx-0x8]
 	mov    QWORD PTR [rdi],rax
-	mov    QWORD PTR [rbx],rcx
+	mov    QWORD PTR [rbx],rdx
 	cmp    rsi,rdi
-	jbe    impl+0x77
+	jbe    impl+0xb5
 	call   impl
 	lea    rdi,[rbx+0x8]
 	cmp    rdi,rbp
