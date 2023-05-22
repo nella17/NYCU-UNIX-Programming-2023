@@ -4,6 +4,8 @@
 import base64
 import hashlib
 import sys
+import os
+sys.path.insert(0, os.path.normpath(os.path.join(__file__, '../../../pow')))
 import pow as solver
 
 from pwn import *
