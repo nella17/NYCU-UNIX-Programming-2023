@@ -106,15 +106,14 @@ int main(int argc, char const *argv[]) {
 
         pid_t worker = -1;
 
-        for (;;) {
+        for (int i = 0; i < 2; i++) {
             PTRACE_WAIT(child, status);
             assert(WIFSTOPPED(status));
-            if (ptrace(PTRACE_GETREGS, child, 0, &regs) < 0) errquit("ptrace(GETREGS)");
-            // dump_regs(regs);
-            worker = regs.rax;
-            if (regs.rip != (long)fork && worker > 0)
-                break;
         }
+
+        if (ptrace(PTRACE_GETREGS, child, 0, &regs) < 0) errquit("ptrace(GETREGS)");
+        // dump_regs(regs);
+        worker = regs.rax;
 
         if (ptrace(PTRACE_GETREGS, child, 0, &regs) < 0) errquit("ptrace(GETREGS)");
         // dump_regs(regs);
