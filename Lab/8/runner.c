@@ -13,24 +13,6 @@
 
 const char asmfork[] = "j9X\x0f\x05\x90\x90\xCC";
 
-void dump_status(pid_t pid, int status) {
-	if(WIFEXITED(status)) {
-		fprintf(stderr, "** child %d returned %d\n",
-			pid, WEXITSTATUS(status));
-	} else if(WIFSIGNALED(status)) {
-		fprintf(stderr, "** child %d signalled %d [%s]%s\n",
-			pid, WTERMSIG(status),
-			strsignal(WTERMSIG(status)),
-			WCOREDUMP(status) ? " (core dumped)" : "");
-	} else if(WIFSTOPPED(status)) {
-		fprintf(stderr, "** child %d stopped by signal %d [%s]\n",
-			pid, WSTOPSIG(status),
-			strsignal(WSTOPSIG(status)));
-	} 
-	return;
-}
-
-
 void dump_regs(struct user_regs_struct regs) {
 	fprintf(stderr, "[%s] rax=%-16llx rbx=%-16llx rcx=%-16llx rdx=%-16llx\n",
 		"", regs.rax, regs.rbx, regs.rcx, regs.rdx);
@@ -61,7 +43,7 @@ int main(int argc, char const *argv[]) {
     fprintf(stderr, "[*] child = %d\n", child);
 
     if (child == 0) {
-        // if(ptrace(PTRACE_TRACEME, 0, 0, 0) < 0) errquit("ptrace(TRACEME)");
+        // if (ptrace(PTRACE_TRACEME, 0, 0, 0) < 0) errquit("ptrace(TRACEME)");
         execlp(bin, bin, NULL);
         errquit("execlp");
     }
