@@ -40,13 +40,14 @@ int main(int argc, char const *argv[]) {
 
 	pid_t child;
     if ((child = fork()) < 0) errquit("fork");
-    fprintf(stderr, "[*] child = %d\n", child);
 
     if (child == 0) {
         // if (ptrace(PTRACE_TRACEME, 0, 0, 0) < 0) errquit("ptrace(TRACEME)");
         execlp(bin, bin, NULL);
         errquit("execlp");
     }
+
+    fprintf(stderr, "[*] child = %d\n", child);
 
 	int status;
 	if (ptrace(PTRACE_ATTACH, child, 0, 0) < 0) errquit("ptrace(ATTACH)");
