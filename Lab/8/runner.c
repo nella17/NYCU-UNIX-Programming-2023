@@ -40,7 +40,7 @@ int main(int argc, char const *argv[]) {
     if ((child = fork()) < 0) errquit("fork");
 
     if (child == 0) {
-        // if (ptrace(PTRACE_TRACEME, 0, 0, 0) < 0) errquit("ptrace(TRACEME)");
+        if (ptrace(PTRACE_TRACEME, 0, 0, 0) < 0) errquit("ptrace(TRACEME)");
         execlp(bin, bin, NULL);
         errquit("execlp");
     }
@@ -48,14 +48,14 @@ int main(int argc, char const *argv[]) {
     fprintf(stderr, "[*] child = %d\n", child);
 
 	int status;
-	if (ptrace(PTRACE_ATTACH, child, 0, 0) < 0) errquit("ptrace(ATTACH)");
+	// if (ptrace(PTRACE_ATTACH, child, 0, 0) < 0) errquit("ptrace(ATTACH)");
     if (waitpid(child, &status, 0) < 0) errquit("waitpid");
     assert(WIFSTOPPED(status));
     ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_EXITKILL | PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE);
 
     struct user_regs_struct regs;
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 2; i++) {
         PTRACE_WAIT(child, status);
         assert(WIFSTOPPED(status));
     }
