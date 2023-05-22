@@ -98,13 +98,18 @@ int main(int argc, char const *argv[]) {
     }
 
     if (ptrace(PTRACE_GETREGS, child, 0, &regs) < 0) errquit("ptrace(GETREGS)");
-
-    void* main95 = (void*)regs.rip;
     char* magic = (char*)regs.rax;
     fprintf(stderr, "[*] magic = %p\n", magic);
-    fprintf(stderr, "[*] main95= %p\n", main95);
 
-    void* fork = main95 - strlen(asmfork);
+    ptrace(PTRACE_CONT, child, 0, 0);
+    if (waitpid(child, &status, 0) < 0) errquit("waitpid");
+    assert(WIFSTOPPED(status));
+
+    if (ptrace(PTRACE_GETREGS, child, 0, &regs) < 0) errquit("ptrace(GETREGS)");
+    void* main = (void*)regs.rip;
+    fprintf(stderr, "[*] main  = %p\n", main);
+
+    void* fork = main - strlen(asmfork);
     assert(strlen(asmfork) == sizeof(long));
     long dat = *((long*)asmfork);
     if (ptrace(PTRACE_POKETEXT, child, fork, dat) < 0) errquit("ptrace(POKETEXT)");
