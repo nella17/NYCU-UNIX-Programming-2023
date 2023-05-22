@@ -1,0 +1,167 @@
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/ptrace.h>
+#include <sys/user.h>
+
+#define SIZE 10
+#define errquit(m) { perror(m); exit(-1); }
+
+const char asmfork[] = "j9X\x0f\x05\x90\x90\xCC";
+
+void dump_status(pid_t pid, int status) {
+	if(WIFEXITED(status)) {
+		fprintf(stderr, "** child %d returned %d\n",
+			pid, WEXITSTATUS(status));
+	} else if(WIFSIGNALED(status)) {
+		fprintf(stderr, "** child %d signalled %d [%s]%s\n",
+			pid, WTERMSIG(status),
+			strsignal(WTERMSIG(status)),
+			WCOREDUMP(status) ? " (core dumped)" : "");
+	} else if(WIFSTOPPED(status)) {
+		fprintf(stderr, "** child %d stopped by signal %d [%s]\n",
+			pid, WSTOPSIG(status),
+			strsignal(WSTOPSIG(status)));
+	} 
+	return;
+}
+
+
+void dump_regs(struct user_regs_struct regs) {
+	fprintf(stderr, "[%s] rax=%-16llx rbx=%-16llx rcx=%-16llx rdx=%-16llx\n",
+		"", regs.rax, regs.rbx, regs.rcx, regs.rdx);
+	fprintf(stderr, "[%s]  r8=%-16llx  r9=%-16llx r10=%-16llx r11=%-16llx\n",
+		"", regs.r8, regs.r9, regs.r10, regs.r11);
+	fprintf(stderr, "[%s] r12=%-16llx r13=%-16llx r14=%-16llx r15=%-16llx\n",
+		"", regs.r12, regs.r13, regs.r14, regs.r15);
+	fprintf(stderr, "[%s] rdi=%-16llx rsi=%-16llx rbp=%-16llx rsp=%-16llx\n",
+		"", regs.rdi, regs.rsi, regs.rbp, regs.rsp);
+	fprintf(stderr, "[%s] rip=%-16llx\n", "", regs.rip);
+	fprintf(stderr, "----\n");
+}
+
+void sigchld(int s) {
+	pid_t pid;
+	int status;
+	if ((pid = waitpid(0, &status, WNOHANG)) > 0) {
+		fprintf(stderr, "!! caught SIGCHLD for %d\n", pid);
+		dump_status(pid, status);
+        /* if (WIFSTOPPED(status) && worker == -1) */
+        /*     worker = pid; */
+        /*
+        struct user_regs_struct regs;
+        if (ptrace(PTRACE_GETREGS, pid, 0, &regs) < 0) errquit("ptrace(GETREGS)");
+        dump_regs(regs);
+        ptrace(PTRACE_CONT, pid, 0, 0);
+        */
+	}
+	return;
+}
+
+int main(int argc, char const *argv[]) {
+	if(argc < 2) {
+		fprintf(stderr, "usage: %s binary\n", argv[0]);
+		return -1;
+	}
+
+	// signal(SIGCHLD, sigchld);
+
+    const char* bin = argv[1];
+
+	pid_t child;
+    if ((child = fork()) < 0) errquit("fork");
+    fprintf(stderr, "[*] child = %d\n", child);
+
+    if (child == 0) {
+        // if(ptrace(PTRACE_TRACEME, 0, 0, 0) < 0) errquit("ptrace(TRACEME)");
+        execlp(bin, bin, NULL);
+        errquit("execlp");
+    }
+
+	if (ptrace(PTRACE_ATTACH, child, 0, 0) < 0) errquit("ptrace(ATTACH)");
+
+	int status;
+    if (waitpid(child, &status, 0) < 0) errquit("waitpid");
+    assert(WIFSTOPPED(status));
+    ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_EXITKILL | PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE);
+
+    struct user_regs_struct regs;
+
+    for (int i = 0; i < 3; i++) {
+        ptrace(PTRACE_CONT, child, 0, 0);
+        if (waitpid(child, &status, 0) < 0) errquit("waitpid");
+        assert(WIFSTOPPED(status));
+    }
+
+    if (ptrace(PTRACE_GETREGS, child, 0, &regs) < 0) errquit("ptrace(GETREGS)");
+
+    void* main95 = (void*)regs.rip;
+    char* magic = (char*)regs.rax;
+    fprintf(stderr, "[*] magic = %p\n", magic);
+    fprintf(stderr, "[*] main95= %p\n", main95);
+
+    void* fork = main95 - strlen(asmfork);
+    assert(strlen(asmfork) == sizeof(long));
+    long dat = *((long*)asmfork);
+    if (ptrace(PTRACE_POKETEXT, child, fork, dat) < 0) errquit("ptrace(POKETEXT)");
+    fprintf(stderr, "[*] fork  = %p\n", fork);
+    fprintf(stderr, "[*] asm   = 0x%lx\n", dat);
+
+    // dump_regs(regs);
+
+    for (long long n = 0; n < (1<<SIZE); n++) {
+        if (ptrace(PTRACE_GETREGS, child, 0, &regs) < 0) errquit("ptrace(GETREGS)");
+        regs.rip = (long)fork;
+        if (ptrace(PTRACE_SETREGS, child, 0, &regs) < 0) errquit("ptrace(POKEUSER)");
+
+        pid_t worker = -1;
+
+        for (;;) {
+            ptrace(PTRACE_CONT, child, 0, 0);
+            if (waitpid(child, &status, 0) < 0) errquit("waitpid");
+            assert(WIFSTOPPED(status));
+            if (ptrace(PTRACE_GETREGS, child, 0, &regs) < 0) errquit("ptrace(GETREGS)");
+            // dump_regs(regs);
+            worker = regs.rax;
+            if (regs.rip != (long)fork && worker > 0)
+                break;
+        }
+
+        if (ptrace(PTRACE_GETREGS, child, 0, &regs) < 0) errquit("ptrace(GETREGS)");
+        // dump_regs(regs);
+
+        // fprintf(stderr, "[*] worker= %d\n", worker);
+
+        ptrace(PTRACE_CONT, worker, 0, 0);
+        if (waitpid(worker, &status, 0) < 0) errquit("waitpid");
+        assert(WIFSTOPPED(status));
+
+        // if (ptrace(PTRACE_GETREGS, worker, 0, &regs) < 0) errquit("ptrace(GETREGS)");
+        // dump_regs(regs);
+
+        char buf[8];
+        for (int i = 0; i < 8; i++)
+            buf[i % 8] = '0' + ((n >> i) & 1);
+        if (ptrace(PTRACE_POKETEXT, worker, magic, *(long*)buf) < 0) errquit("ptrace(POKETEXT)");
+        memset(buf, 0, 8);
+        for (int i = 8; i < SIZE; i++)
+            buf[i % 8] = '0' + ((n >> i) & 1);
+        if (ptrace(PTRACE_POKETEXT, worker, magic+8, *(long*)buf) < 0) errquit("ptrace(POKETEXT)");
+
+        for (;;) {
+            ptrace(PTRACE_CONT, worker, 0, 0);
+            if (waitpid(worker, &status, 0) < 0) errquit("waitpid");
+            if (!WIFSTOPPED(status)) break;
+            if (ptrace(PTRACE_GETREGS, worker, 0, &regs) < 0) errquit("ptrace(GETREGS)");
+            // dump_regs(regs);
+            if (regs.rax == 0xffffffff) break;
+        }
+        if (!WIFSTOPPED(status)) break;
+    }
+
+	return 0;
+}
