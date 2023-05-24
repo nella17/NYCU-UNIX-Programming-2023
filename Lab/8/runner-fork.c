@@ -128,6 +128,7 @@ int main(int argc, char const *argv[]) {
         }
         kill(worker, SIGKILL);
         if (!WIFSTOPPED(status)) break;
+        if (waitpid(worker, &status, 0) < 0) errquit("waitpid");
     }
 
 	return 0;
