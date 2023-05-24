@@ -96,7 +96,8 @@ int main(int argc, char const *argv[]) {
 
         if (ptrace(PTRACE_GETREGS, child, 0, &regs) < 0) errquit("ptrace(GETREGS)");
         // dump_regs(regs);
-        worker = regs.rax;
+        worker = child;
+        child = regs.rax;
 
         if (ptrace(PTRACE_GETREGS, child, 0, &regs) < 0) errquit("ptrace(GETREGS)");
         // dump_regs(regs);
