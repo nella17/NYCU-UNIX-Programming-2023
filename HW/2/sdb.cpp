@@ -21,82 +21,85 @@
 constexpr int MAX_INSTR_BYTES = 15 + 1;
 using ull = unsigned long long;
 
+int wait_stop(int pid) {
+    int status;
+    if (waitpid(pid, &status, 0) < 0)
+        throw ((perror("waitpid"), -1));
+    if (WIFEXITED(status)) {
+        puts("** the target program terminated.");
+        throw true;
+    } else {
+        assert(WIFSTOPPED(status));
+    }
+    return status;
+}
+
+auto get_regs(int pid) {
+    struct user_regs_struct regs;
+    if (ptrace(PTRACE_GETREGS, pid, 0, &regs) < 0)
+        throw ((perror("ptrace(GETREGS)"), -1));
+    return regs;
+}
+
+void set_regs(pid_t pid, struct user_regs_struct regs) {
+    if (ptrace(PTRACE_SETREGS, pid, 0, &regs) < 0)
+        throw ((perror("ptrace(SETREGS)"), -1));
+}
+
+long readlong(pid_t pid, ull addr) {
+    errno = 0;
+    long data = ptrace(PTRACE_PEEKTEXT, pid, addr);
+    if (errno != 0)
+        throw ((perror("ptrace(PEEKTEXT)"), -1));
+    return data;
+}
+
+uint8_t readbyte(pid_t pid, ull addr) {
+    long byte = readlong(pid, addr);
+    return byte & 0xff;
+}
+
+void writelong(pid_t pid, ull addr, long data) {
+    if (ptrace(PTRACE_POKETEXT, pid, addr, data) < 0)
+        throw ((perror("ptrace(POKETEXT)"), -1));
+}
+
+void writebyte(pid_t pid, ull addr, uint8_t byte) {
+    long data = readlong(pid, addr);
+    data = (data & ~0xff) | byte;
+    writelong(pid, addr, data);
+}
+
 class SDB {
 public:
     static constexpr int DISASSEMBLE_COUNT = 5;
     static constexpr uint8_t NOP = 0x90;
     static constexpr uint8_t INT = 0xCC;
+    static constexpr long ASMFORK = (long)0xcc9090050f58396a;
 
     const char* binpath;
-    const char* binary;
     size_t binsize;
+    const char* binary;
     csh handle;
-    pid_t child;
+    pid_t child, child_anchor;
     struct user_regs_struct regs;
     uint8_t code[MAX_INSTR_BYTES * 5];
     ull text_start, text_end;
     std::map<ull, uint8_t> breakpoints;
 
-    int wait_stop(int pid) {
-        int status;
-        if (waitpid(pid, &status, 0) < 0)
-            throw ((perror("waitpid"), -1));
-        if (WIFEXITED(status)) {
-            puts("** the target program terminated.");
-            throw true;
-        } else {
-            assert(WIFSTOPPED(status));
-        }
-        return status;
-    }
-
-    void get_regs() {
-        if (ptrace(PTRACE_GETREGS, child, 0, &regs) < 0)
-            throw ((perror("ptrace(GETREGS)"), -1));
-    }
-
-    void set_regs() {
-        if (ptrace(PTRACE_SETREGS, child, 0, &regs) < 0)
-            throw ((perror("ptrace(SETREGS)"), -1));
-    }
-
     int wait_stop_regs() {
         int status = wait_stop(child);
-        get_regs();
+        regs = get_regs(child);
         if (breakpoints.count(regs.rip-1))
-            regs.rip--, set_regs();
+            regs.rip--, set_regs(child, regs);
         if (breakpoints.count(regs.rip))
             printf("** hit a breakpoint at 0x%llx.\n", regs.rip);
         return status;
     }
 
-    long readlong(ull addr) {
-        errno = 0;
-        long data = ptrace(PTRACE_PEEKTEXT, child, addr);
-        if (errno != 0)
-            throw ((perror("ptrace(PEEKTEXT)"), -1));
-        return data;
-    }
-
-    uint8_t readbyte(ull addr) {
-        long byte = readlong(addr);
-        return byte & 0xff;
-    }
-
-    void writelong(ull addr, long data) {
-        if (ptrace(PTRACE_POKETEXT, child, addr, data) < 0)
-            throw ((perror("ptrace(POKETEXT)"), -1));
-    }
-
-    void writebyte(ull addr, uint8_t byte) {
-        long data = readlong(addr);
-        data = (data & ~0xff) | byte;
-        writelong(addr, data);
-    }
-
     void show_disassemble() {
         for (size_t i = 0; i < sizeof(code); i += sizeof(long))
-            *(long*)&code[i] = readlong(regs.rip + i);
+            *(long*)&code[i] = readlong(child, regs.rip + i);
 
         for (auto [addr, data]: breakpoints) {
             auto off = addr - regs.rip;
@@ -141,7 +144,13 @@ public:
 
     SDB(char* const argv[]):
         binpath(argv[0]),
+        binsize{},
         binary(mapbin()),
+        handle{},
+        child(-1), child_anchor(-1),
+        regs{},
+        code{},
+        text_start(0), text_end((ull)-1ll),
         breakpoints{}
     {
         if (cs_open(CS_ARCH_X86, CS_MODE_64, &handle) != CS_ERR_OK)
@@ -168,14 +177,15 @@ public:
         if (child < 0) throw ((perror("fork"), -1));
 
         if (child == 0) {
-            ptrace(PTRACE_TRACEME);
+            if (ptrace(PTRACE_TRACEME) < 0)
+                throw ((perror("ptrace(TRACEME)"), -1));
             execv(binpath, argv);
             throw ((perror("execvp"),-1));
         }
 
-        wait_stop(child);
-        get_regs();
-        ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_EXITKILL | PTRACE_O_TRACEFORK);
+        wait_stop_regs();
+        if (ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_EXITKILL | PTRACE_O_TRACEFORK) < 0)
+            throw ((perror("ptrace(SETOPTIONS)"), -1));
         printf("** program '%s' loaded. entry point 0x%llx\n", binpath, regs.rip);
     }
 
@@ -187,10 +197,11 @@ public:
     void step() {
         auto prip = regs.rip;
         bool hasbp = breakpoints.count(prip);
-        if (hasbp) writebyte(prip, breakpoints[prip]);
-        ptrace(PTRACE_SINGLESTEP, child, 0, 0);
+        if (hasbp) writebyte(child, prip, breakpoints[prip]);
+        if (ptrace(PTRACE_SINGLESTEP, child, 0, 0) < 0)
+            throw (perror("ptrace(SINGLESTEP)"), -1);
         wait_stop_regs();
-        if (hasbp) writebyte(prip, INT);
+        if (hasbp) writebyte(child, prip, INT);
     }
 
     void cont() {
@@ -198,24 +209,51 @@ public:
             step();
         if (breakpoints.count(regs.rip))
             return;
-        ptrace(PTRACE_CONT, child, 0, 0);
+        if (ptrace(PTRACE_CONT, child, 0, 0) < 0)
+            throw (perror("ptrace(CONT)"), -1);
         wait_stop_regs();
     }
 
     void breakpoint(ull addr) {
         if (breakpoints.count(addr)) return;
-        uint8_t data = readbyte(addr);
+        uint8_t data = readbyte(child, addr);
         breakpoints.emplace(addr, data);
-        writebyte(addr, INT);
+        writebyte(child, addr, INT);
         printf("** set a breakpoint at 0x%llx.\n", addr);
     }
 
     void anchor() {
-        // TODO
+        if (child_anchor >= 0)
+            kill(child_anchor, SIGKILL);
+
+        long data = readlong(child, regs.rip);
+
+        writelong(child, regs.rip, ASMFORK);
+        for (int i = 0; i < 2; i++) {
+            if (ptrace(PTRACE_CONT, child, 0, 0) < 0)
+                throw (perror("ptrace(CONT)"), -1);
+            wait_stop(child);
+        }
+        child_anchor = (pid_t)get_regs(child).rax;
+        if (child_anchor < 0)
+            throw (puts("** can't create anchor"), -1);
+
+        writelong(child, regs.rip, data);
+        set_regs(child, regs);
+        writelong(child_anchor, regs.rip, data);
+        set_regs(child_anchor, regs);
     }
 
     void timetravel() {
-        // TODO
+        if (child_anchor < 0) {
+            puts("** anchor point not exist");
+            return;
+        }
+
+        child = child_anchor;
+        child_anchor = -1;
+        regs = get_regs(child);
+        anchor();
     }
 
     void run() {
@@ -223,7 +261,7 @@ public:
         bool show = true;
         while (true) {
             if (show) {
-                get_regs();
+                regs = get_regs(child);
                 show_disassemble();
                 show = false;
             }
@@ -245,9 +283,11 @@ public:
                     break;
                 }
                 case 'a': // anchor
+                    puts("** dropped an anchor");
                     anchor();
                     break;
                 case 't': // timetravel
+                    puts("** go back to the anchor point");
                     timetravel();
                     show = true;
                     break;
