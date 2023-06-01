@@ -309,6 +309,9 @@ int main(int argc, char* const argv[]) {
         exit(-1);
     }
 
+    setvbuf(stdin, NULL, _IONBF, 0);
+    setvbuf(stdout, NULL, _IONBF, 0);
+
     try {
         SDB sdb(argv+1);
         sdb.run();

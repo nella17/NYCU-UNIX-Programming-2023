@@ -5,9 +5,9 @@ break 0x40111e
 cont
 anchor
 cont
-haha
+haha           
 timetravel
 cont
-42
+42             
 cont
 "
