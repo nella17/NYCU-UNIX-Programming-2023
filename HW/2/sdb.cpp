@@ -219,7 +219,6 @@ public:
         uint8_t byte = readbyte(child, addr);
         breakpoints.emplace(addr, byte);
         writebyte(child, addr, INT);
-        printf("** set a breakpoint at 0x%llx.\n", addr);
     }
 
     void anchor() {
@@ -285,6 +284,7 @@ public:
                 case 'b': { // break
                     ull addr;
                     sscanf(strchr(cmd, ' ')+1, "%llx", &addr);
+                    printf("** set a breakpoint at 0x%llx.\n", addr);
                     breakpoint(addr);
                     break;
                 }
