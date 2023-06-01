@@ -101,10 +101,10 @@ public:
         for (size_t i = 0; i < sizeof(code); i += sizeof(long))
             *(long*)&code[i] = readlong(child, regs.rip + i);
 
-        for (auto [addr, data]: breakpoints) {
+        for (auto [addr, byte]: breakpoints) {
             auto off = addr - regs.rip;
             if (0 <= off and off < sizeof(code))
-                code[off] = data;
+                code[off] = byte;
         }
 
         cs_insn *insns;
@@ -216,8 +216,8 @@ public:
 
     void breakpoint(ull addr) {
         if (breakpoints.count(addr)) return;
-        uint8_t data = readbyte(child, addr);
-        breakpoints.emplace(addr, data);
+        uint8_t byte = readbyte(child, addr);
+        breakpoints.emplace(addr, byte);
         writebyte(child, addr, INT);
         printf("** set a breakpoint at 0x%llx.\n", addr);
     }
@@ -240,8 +240,11 @@ public:
 
         writelong(child, regs.rip, data);
         set_regs(child, regs);
+
         writelong(child_anchor, regs.rip, data);
         set_regs(child_anchor, regs);
+        for (auto [addr, byte]: breakpoints)
+            writebyte(child_anchor, addr, byte);
     }
 
     void timetravel() {
@@ -254,6 +257,9 @@ public:
         child_anchor = -1;
         regs = get_regs(child);
         anchor();
+
+        for (auto [addr, byte]: breakpoints)
+            writebyte(child, addr, INT);
     }
 
     void run() {
