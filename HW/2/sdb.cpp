@@ -17,6 +17,7 @@
 #include <capstone/capstone.h>
 
 #include <map>
+#include <set>
 
 constexpr int MAX_INSTR_BYTES = 15 + 1;
 using ull = unsigned long long;
@@ -70,6 +71,13 @@ void writebyte(pid_t pid, ull addr, uint8_t byte) {
     writelong(pid, addr, data);
 }
 
+int kill(pid_t pid) {
+    kill(pid, SIGKILL);
+    int status;
+    waitpid(pid, &status, 0);
+    return status;
+}
+
 class SDB {
 public:
     static constexpr int DISASSEMBLE_COUNT = 5;
@@ -86,6 +94,7 @@ public:
     uint8_t code[MAX_INSTR_BYTES * 5];
     ull text_start, text_end;
     std::map<ull, uint8_t> breakpoints;
+    std::set<pid_t> childs;
 
     int wait_stop_regs() {
         int status = wait_stop(child);
@@ -151,7 +160,8 @@ public:
         regs{},
         code{},
         text_start(0), text_end((ull)-1ll),
-        breakpoints{}
+        breakpoints{},
+        childs{}
     {
         if (cs_open(CS_ARCH_X86, CS_MODE_64, &handle) != CS_ERR_OK)
             throw ((puts("cs_open(fail"), -1));
@@ -183,6 +193,8 @@ public:
             throw ((perror("execvp"),-1));
         }
 
+        childs.emplace(child);
+
         wait_stop_regs();
         if (ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_EXITKILL | PTRACE_O_TRACEFORK) < 0)
             throw ((perror("ptrace(SETOPTIONS)"), -1));
@@ -192,6 +204,8 @@ public:
     ~SDB() {
         cs_close(&handle);
         munmap((void*)binary, binsize);
+        for (auto pid: childs)
+            kill(pid);
     }
 
     void step() {
@@ -222,8 +236,7 @@ public:
     }
 
     void anchor() {
-        if (child_anchor >= 0)
-            kill(child_anchor, SIGKILL);
+        if (child_anchor >= 0) kill(child_anchor);
 
         long data = readlong(child, regs.rip);
 
@@ -236,14 +249,15 @@ public:
         child_anchor = (pid_t)get_regs(child).rax;
         if (child_anchor < 0)
             throw (puts("** can't create anchor"), -1);
-
-        writelong(child, regs.rip, data);
-        set_regs(child, regs);
+        childs.emplace(child_anchor);
 
         writelong(child_anchor, regs.rip, data);
         set_regs(child_anchor, regs);
         for (auto [addr, byte]: breakpoints)
             writebyte(child_anchor, addr, byte);
+
+        writelong(child, regs.rip, data);
+        set_regs(child, regs);
     }
 
     void timetravel() {
