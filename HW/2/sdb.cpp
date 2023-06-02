@@ -167,10 +167,10 @@ public:
             throw ((puts("cs_open(fail"), -1));
 
         auto ehdr = (Elf64_Ehdr*)binary;
-        if (strncmp((const char*)ehdr->e_ident, "\x7f""ELF", 4))
+        if (strncmp((const char*)ehdr->e_ident, "\x7F\x45\x4C\x46", 4))
             throw ((puts("not elf ?"), -1));
 
-        auto shdrs = (Elf64_Shdr*)(binary + ehdr->e_shoff);
+        auto shdrs = (Elf64_Shdr*)&binary[ehdr->e_shoff];
 
         auto shstrtab = &shdrs[ehdr->e_shstrndx];
         auto shstrn = &binary[shstrtab->sh_offset];
@@ -198,7 +198,9 @@ public:
         wait_stop_regs();
         if (ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_EXITKILL | PTRACE_O_TRACEFORK) < 0)
             throw ((perror("ptrace(SETOPTIONS)"), -1));
-        printf("** program '%s' loaded. entry point 0x%llx\n", binpath, regs.rip);
+        if (regs.rip != ehdr->e_entry)
+            throw ((puts("not static binary ?"), -1));
+        printf("** program '%s' loaded. entry point 0x%lx\n", binpath, ehdr->e_entry);
     }
 
     ~SDB() {
