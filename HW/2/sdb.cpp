@@ -95,18 +95,21 @@ public:
     ull text_start, text_end;
     std::map<ull, uint8_t> breakpoints;
     std::set<pid_t> childs;
+    bool hit_breakpoint;
 
     int wait_stop_regs() {
         int status = wait_stop(child);
         regs = get_regs(child);
         if (breakpoints.count(regs.rip-1))
             regs.rip--, set_regs(child, regs);
-        if (breakpoints.count(regs.rip))
-            printf("** hit a breakpoint at 0x%llx.\n", regs.rip);
+        hit_breakpoint = !!breakpoints.count(regs.rip);
         return status;
     }
 
     void show_disassemble() {
+        if (hit_breakpoint)
+            printf("** hit a breakpoint at 0x%llx.\n", regs.rip);
+
         for (size_t i = 0; i < sizeof(code); i += sizeof(long))
             *(long*)&code[i] = readlong(child, regs.rip + i);
 
@@ -223,7 +226,7 @@ public:
     void cont() {
         if (breakpoints.count(regs.rip))
             step();
-        if (breakpoints.count(regs.rip))
+        if (hit_breakpoint)
             return;
         if (ptrace(PTRACE_CONT, child, 0, 0) < 0)
             throw (perror("ptrace(CONT)"), -1);
