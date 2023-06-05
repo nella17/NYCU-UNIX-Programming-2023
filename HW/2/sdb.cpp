@@ -99,8 +99,9 @@ public:
 
     int wait_stop_regs() {
         int status = wait_stop(child);
+        auto prip = regs.rip;
         regs = get_regs(child);
-        if (breakpoints.count(regs.rip-1))
+        if (!breakpoints.count(prip) and breakpoints.count(regs.rip-1))
             regs.rip--, set_regs(child, regs);
         hit_breakpoint = !!breakpoints.count(regs.rip);
         return status;
